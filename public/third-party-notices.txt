@@ -1,0 +1,15 @@
+CompressIt third-party notices
+
+This product includes open-source software under its respective license terms.
+
+@ffmpeg/core is licensed under GNU GPL 2.0 or later.
+Corresponding source: https://github.com/ffmpegwasm/ffmpeg.wasm
+License text: https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
+
+@ffmpeg/ffmpeg, @ffmpeg/util, React, React DOM, Vite, and vite-plugin-pwa
+are licensed under the MIT License.
+
+Workbox is licensed under the Apache License 2.0.
+
+Exact versions are recorded in the pnpm lockfile distributed with the source
+repository. Copyright remains with each component's respective authors.

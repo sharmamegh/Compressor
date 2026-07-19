@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.vercel/
+.DS_Store
+*.local
+.env*
+!.env.example
+
+# Generated from installed FFmpeg packages.
+public/ffmpeg/
+node_modules
+.vercel
