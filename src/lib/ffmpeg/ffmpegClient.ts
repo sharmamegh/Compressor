@@ -144,7 +144,9 @@ export class FFmpegClient {
             'FFmpeg exited without an output.',
             recentLogs.join('\n'),
           )
-          throw new Error('The compression engine could not process this video.')
+          throw new Error(
+            'The compression engine could not process this video.',
+          )
         }
 
         onStatus('Finishing your download')

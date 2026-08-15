@@ -44,6 +44,12 @@ function makeJob(): CompressionJob {
   }
 }
 
+function latestEngine() {
+  const engine = instances.at(-1)
+  if (!engine) throw new Error('Expected an FFmpeg instance.')
+  return engine
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (reason?: unknown) => void
@@ -61,8 +67,7 @@ describe('FFmpegClient', () => {
 
   it('keeps a cancelled run from failing a restarted compression', async () => {
     const client = new FFmpegClient()
-    const firstEngine = instances[0]
-    expect(firstEngine).toBeDefined()
+    const firstEngine = latestEngine()
     const firstExec = deferred<number>()
     firstEngine.exec.mockReturnValue(firstExec.promise)
 
@@ -85,8 +90,7 @@ describe('FFmpegClient', () => {
 
   it('isolates overlapping compress() calls onto separate engines', async () => {
     const client = new FFmpegClient()
-    const firstEngine = instances[0]
-    expect(firstEngine).toBeDefined()
+    const firstEngine = latestEngine()
     const firstExec = deferred<number>()
     firstEngine.exec.mockReturnValue(firstExec.promise)
 
@@ -103,8 +107,8 @@ describe('FFmpegClient', () => {
     firstExec.reject(new Error('FS error after overlapping write'))
     await expect(first).rejects.toThrow('Compression cancelled.')
     expect(firstEngine.terminate).toHaveBeenCalled()
-    expect(instances.at(-1)?.exec).toHaveBeenCalled()
+    expect(latestEngine().exec).toHaveBeenCalled()
     expect(firstEngine.deleteFile).toHaveBeenCalled()
-    expect(instances.at(-1)?.deleteFile).toHaveBeenCalled()
+    expect(latestEngine().deleteFile).toHaveBeenCalled()
   })
 })

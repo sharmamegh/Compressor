@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { CompressionResult } from './lib/ffmpeg/ffmpegClient'
 
@@ -24,10 +24,9 @@ vi.mock('./lib/ffmpeg/ffmpegClient', () => ({
 }))
 
 vi.mock('./features/compression/compression', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('./features/compression/compression')>()
+  const actual = await importOriginal()
   return {
-    ...actual,
+    ...(actual as object),
     getVideoMetadata: vi.fn().mockResolvedValue({
       duration: 12,
       width: 1280,
@@ -63,6 +62,10 @@ async function chooseVideo(
 }
 
 describe('App', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
   beforeEach(() => {
     mockCompress.mockReset()
     mockCancel.mockReset()
@@ -108,10 +111,12 @@ describe('App', () => {
     fireEvent.click(compressButton)
     fireEvent.click(compressButton)
 
-    expect(mockCompress).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => {
+      expect(mockCompress).toHaveBeenCalledTimes(1)
+    })
 
     compression.resolve({
-      blob: new Blob([1, 2, 3]),
+      blob: new Blob([new Uint8Array([1, 2, 3])]),
       fileName: 'clip-compressed.mp4',
     })
     expect(await screen.findByText(/ready to download/i)).toBeInTheDocument()
@@ -128,15 +133,17 @@ describe('App', () => {
     await chooseVideo(user)
 
     await user.click(screen.getByRole('button', { name: /compress video/i }))
-    await user.click(screen.getByRole('button', { name: /cancel/i }))
+    await user.click(await screen.findByRole('button', { name: /^cancel$/i }))
     await user.click(screen.getByRole('button', { name: /compress video/i }))
 
-    first.reject(new Error('The compression engine could not process this video.'))
+    first.reject(
+      new Error('The compression engine could not process this video.'),
+    )
     await screen.findByText(/working on it/i)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 
     second.resolve({
-      blob: new Blob([1, 2, 3]),
+      blob: new Blob([new Uint8Array([1, 2, 3])]),
       fileName: 'clip-compressed.mp4',
     })
     expect(await screen.findByText(/ready to download/i)).toBeInTheDocument()
