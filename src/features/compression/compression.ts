@@ -163,6 +163,9 @@ export function buildFFmpegArgs(
 
   if (dimensions) {
     args.push('-vf', `scale=${dimensions.width}:${dimensions.height}`)
+  } else if (job.metadata.width % 2 !== 0 || job.metadata.height % 2 !== 0) {
+    // yuv420 encoders reject odd sizes; downscale already snaps to even.
+    args.push('-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2')
   }
 
   if (format === 'mp4') {
