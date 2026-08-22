@@ -74,9 +74,24 @@ describe('buildFFmpegArgs', () => {
     const args = buildFFmpegArgs(makeJob(), 'input.mp4', 'output.mp4')
 
     expect(args).toContain('libx264')
+    expect(args).toContain('yuv420p')
     expect(args).toContain('scale=1280:720')
     expect(args).toContain('+faststart')
     expect(args.at(-1)).toBe('output.mp4')
+  })
+
+  it('forces 8-bit 4:2:0 so 4:4:4 and 10-bit sources stay browser-playable', () => {
+    const mp4 = buildFFmpegArgs(makeJob(), 'input.mp4', 'output.mp4')
+    const webm = buildFFmpegArgs(
+      makeJob({ format: 'webm', resolution: 'source' }),
+      'input.mov',
+      'output.webm',
+    )
+
+    expect(mp4.slice(mp4.indexOf('-c:v'), mp4.indexOf('-crf'))).toEqual(
+      expect.arrayContaining(['-pix_fmt', 'yuv420p']),
+    )
+    expect(webm).toEqual(expect.arrayContaining(['-pix_fmt', 'yuv420p']))
   })
 
   it('does not upscale a low-resolution source', () => {
@@ -95,6 +110,7 @@ describe('buildFFmpegArgs', () => {
 
     expect(args).toContain('libvpx-vp9')
     expect(args).toContain('libopus')
+    expect(args).toContain('yuv420p')
     expect(args).toContain('-maxrate')
     expect(args).not.toContain('-crf')
   })
