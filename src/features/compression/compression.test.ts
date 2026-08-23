@@ -101,6 +101,21 @@ describe('buildFFmpegArgs', () => {
     expect(buildFFmpegArgs(job, 'in.mp4', 'out.mp4')).not.toContain('-vf')
   })
 
+  it('snaps odd source dimensions so yuv420 encoders can run', () => {
+    const keepSource = makeJob({ resolution: 'source' })
+    keepSource.metadata = { duration: 8, width: 853, height: 480 }
+
+    const withinCap = makeJob({ resolution: '720' })
+    withinCap.metadata = { duration: 8, width: 640, height: 361 }
+
+    expect(buildFFmpegArgs(keepSource, 'in.mp4', 'out.mp4')).toEqual(
+      expect.arrayContaining(['-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2']),
+    )
+    expect(buildFFmpegArgs(withinCap, 'in.mp4', 'out.mp4')).toEqual(
+      expect.arrayContaining(['-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2']),
+    )
+  })
+
   it('builds WebM settings and a target bitrate', () => {
     const args = buildFFmpegArgs(
       makeJob({ format: 'webm', targetSizeMB: 10, resolution: 'source' }),
