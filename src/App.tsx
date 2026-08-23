@@ -162,7 +162,7 @@ function App() {
   }
 
   const startCompression = async () => {
-    if (!file || !metadata) return
+    if (!file || !metadata || compressingRef.current) return
     if (
       settings.targetSizeMB !== undefined &&
       (settings.targetSizeMB < 1 ||
@@ -193,7 +193,14 @@ function App() {
         setProgress,
         setStatus,
       )
+      if (compressionId !== compressionIdRef.current) {
+        throw new Error('Compression cancelled.')
+      }
       const url = URL.createObjectURL(compressed.blob)
+      if (compressionId !== compressionIdRef.current) {
+        URL.revokeObjectURL(url)
+        throw new Error('Compression cancelled.')
+      }
       setResult({
         ...compressed,
         url,
@@ -201,12 +208,15 @@ function App() {
       })
       setStage('done')
     } catch (caught) {
+      if (compressionId !== compressionIdRef.current) return
       setStage('ready')
       const message =
         caught instanceof Error ? caught.message : 'Compression did not finish.'
       if (message !== 'Compression cancelled.') setError(message)
     } finally {
-      compressingRef.current = false
+      if (compressionId === compressionIdRef.current) {
+        compressingRef.current = false
+      }
     }
   }
 
@@ -222,6 +232,8 @@ function App() {
   const reset = () => {
     selectionIdRef.current += 1
     compressionIdRef.current += 1
+    if (compressingRef.current) ffmpegClientRef.current?.cancel()
+    compressingRef.current = false
     if (result) URL.revokeObjectURL(result.url)
     setResult(null)
     setFile(null)
