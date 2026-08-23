@@ -80,6 +80,15 @@ describe('buildFFmpegArgs', () => {
     expect(args.at(-1)).toBe('output.mp4')
   })
 
+  it('maps the first real video stream so cover-art thumbnails are not encoded', () => {
+    const args = buildFFmpegArgs(makeJob(), 'input.mp4', 'output.mp4')
+
+    expect(args).toEqual(
+      expect.arrayContaining(['-map', '0:V:0', '-map', '0:a?']),
+    )
+    expect(args).not.toContain('0:v:0')
+  })
+
   it('forces 8-bit 4:2:0 so 4:4:4 and 10-bit sources stay browser-playable', () => {
     const mp4 = buildFFmpegArgs(makeJob(), 'input.mp4', 'output.mp4')
     const webm = buildFFmpegArgs(
