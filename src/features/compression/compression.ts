@@ -171,9 +171,11 @@ export function buildFFmpegArgs(
   if (format === 'mp4') {
     args.push('-c:v', 'libx264', '-preset', 'veryfast')
   } else {
-    args.push('-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-cpu-used', '4')
+    // ffmpeg.wasm 0.12's libvpx-vp9/libopus abort the worker with a stack
+    // overflow (tab crash). VP8 + Vorbis is the stable WebM path in that build.
+    args.push('-c:v', 'libvpx', '-deadline', 'realtime', '-cpu-used', '4')
   }
-  // libx264/VP9 will otherwise keep 4:4:4 or 10-bit, which browsers cannot play.
+  // libx264/VP8 will otherwise keep 4:4:4 or 10-bit, which browsers cannot play.
   args.push('-pix_fmt', 'yuv420p')
 
   if (targetSizeMB && targetSizeMB > 0) {
@@ -194,7 +196,7 @@ export function buildFFmpegArgs(
 
   args.push(
     '-c:a',
-    format === 'mp4' ? 'aac' : 'libopus',
+    format === 'mp4' ? 'aac' : 'libvorbis',
     '-b:a',
     `${values.audioKbps}k`,
   )

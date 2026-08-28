@@ -31,7 +31,7 @@ All selected files, object URLs, output blobs, and FFmpeg files are session-only
 
 ## Compression choices
 
-MP4 output uses H.264 video and AAC audio for broad compatibility. WebM output uses VP9 video and Opus audio. Quality presets map to format-specific CRF and audio bitrate values.
+MP4 output uses H.264 video and AAC audio for broad compatibility. WebM output uses VP8 video and Vorbis audio because the FFmpeg WebAssembly 0.12 build crashes on VP9/Opus. Quality presets map to format-specific CRF and audio bitrate values.
 
 Target-size mode calculates an approximate video bitrate from duration, requested bytes, and audio bitrate. It intentionally uses one pass because a two-pass browser encode would roughly double processing time.
 

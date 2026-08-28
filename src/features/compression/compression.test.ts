@@ -116,6 +116,28 @@ describe('buildFFmpegArgs', () => {
     )
   })
 
+  it('uses VP8 and Vorbis for WebM so ffmpeg.wasm 0.12 does not crash the tab', () => {
+    const args = buildFFmpegArgs(
+      makeJob({ format: 'webm', resolution: 'source' }),
+      'input.mov',
+      'output.webm',
+    )
+
+    expect(args.slice(args.indexOf('-c:v'), args.indexOf('-pix_fmt'))).toEqual([
+      '-c:v',
+      'libvpx',
+      '-deadline',
+      'realtime',
+      '-cpu-used',
+      '4',
+    ])
+    expect(args).toEqual(
+      expect.arrayContaining(['-c:a', 'libvorbis', '-b:a', '112k']),
+    )
+    expect(args).not.toContain('libvpx-vp9')
+    expect(args).not.toContain('libopus')
+  })
+
   it('builds WebM settings and a target bitrate', () => {
     const args = buildFFmpegArgs(
       makeJob({ format: 'webm', targetSizeMB: 10, resolution: 'source' }),
@@ -123,8 +145,10 @@ describe('buildFFmpegArgs', () => {
       'output.webm',
     )
 
-    expect(args).toContain('libvpx-vp9')
-    expect(args).toContain('libopus')
+    expect(args).toContain('libvpx')
+    expect(args).not.toContain('libvpx-vp9')
+    expect(args).toContain('libvorbis')
+    expect(args).not.toContain('libopus')
     expect(args).toContain('yuv420p')
     expect(args).toContain('-maxrate')
     expect(args).not.toContain('-crf')
