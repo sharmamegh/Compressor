@@ -91,3 +91,38 @@ test('compresses a common H264 MP4 without stalling', async ({ page }) => {
     page.getByRole('link', { name: 'Download video' }),
   ).toHaveAttribute('download', 'h264-input-compressed.mp4')
 })
+
+test('compresses a video with audio to WebM without crashing', async ({
+  page,
+}) => {
+  test.setTimeout(180_000)
+  const diagnostics: string[] = []
+  page.on('console', (message) => diagnostics.push(message.text()))
+  page.on('pageerror', (error) => diagnostics.push(error.message))
+  await page.goto('/')
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles('e2e/fixtures/h264-aac-44100.mp4')
+
+  await expect(page.getByText('Choose a result')).toBeVisible()
+  await page.getByLabel('Format').selectOption('webm')
+  await page.getByRole('button', { name: 'Compress video' }).click()
+  const outcome = await Promise.race([
+    page
+      .getByText('Ready to download')
+      .waitFor({ timeout: 160_000 })
+      .then(() => 'complete' as const),
+    page
+      .getByRole('alert')
+      .waitFor({ timeout: 160_000 })
+      .then(() => 'error' as const),
+  ])
+  if (outcome === 'error') {
+    throw new Error(
+      `${await page.getByRole('alert').innerText()}\n${diagnostics.join('\n')}`,
+    )
+  }
+  await expect(
+    page.getByRole('link', { name: 'Download video' }),
+  ).toHaveAttribute('download', 'h264-aac-44100-compressed.webm')
+})
