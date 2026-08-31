@@ -123,19 +123,42 @@ export function getVideoMetadata(file: File): Promise<VideoMetadata> {
   })
 }
 
+function maxShortSide(resolution: Exclude<ResolutionPreset, 'source'>): number {
+  switch (resolution) {
+    case '1080':
+      return 1080
+    case '720':
+      return 720
+    case '480':
+      return 480
+    default: {
+      const _exhaustive: never = resolution
+      return _exhaustive
+    }
+  }
+}
+
+function evenPixel(value: number): number {
+  return value % 2 === 0 ? value : value - 1
+}
+
 function dimensionsFor(
   metadata: VideoMetadata,
   resolution: ResolutionPreset,
 ): { width: number; height: number } | null {
   if (resolution === 'source') return null
 
-  const maxHeight = Number(resolution)
-  if (metadata.height <= maxHeight) return null
+  // 720p means the short side is 720 (1280x720 or 720x1280). Capping height
+  // alone crushes portrait phone video to ~404x720 instead of 720x1280.
+  const maxEdge = maxShortSide(resolution)
+  const shortSide = Math.min(metadata.width, metadata.height)
+  if (shortSide <= maxEdge) return null
 
-  const height = maxHeight % 2 === 0 ? maxHeight : maxHeight - 1
-  const scaledWidth = Math.round((metadata.width / metadata.height) * height)
-  const width = scaledWidth % 2 === 0 ? scaledWidth : scaledWidth - 1
-  return { width, height }
+  const scale = maxEdge / shortSide
+  return {
+    width: evenPixel(Math.round(metadata.width * scale)),
+    height: evenPixel(Math.round(metadata.height * scale)),
+  }
 }
 
 const qualityValues = {
