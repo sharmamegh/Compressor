@@ -138,6 +138,27 @@ describe('buildFFmpegArgs', () => {
     expect(args).not.toContain('libopus')
   })
 
+  it('gives VP8 quality mode a high bitrate ceiling so CRF is not capped at 256k', () => {
+    const balanced = buildFFmpegArgs(
+      makeJob({ format: 'webm', resolution: 'source' }),
+      'input.mov',
+      'output.webm',
+    )
+    const quality = buildFFmpegArgs(
+      makeJob({ format: 'webm', quality: 'quality', resolution: 'source' }),
+      'input.mov',
+      'output.webm',
+    )
+
+    expect(balanced.slice(balanced.indexOf('-crf'))).toEqual(
+      expect.arrayContaining(['-crf', '35', '-b:v', '8M']),
+    )
+    expect(quality.slice(quality.indexOf('-crf'))).toEqual(
+      expect.arrayContaining(['-crf', '29', '-b:v', '8M']),
+    )
+    expect(balanced).not.toEqual(expect.arrayContaining(['-b:v', '0']))
+  })
+
   it('builds WebM settings and a target bitrate', () => {
     const args = buildFFmpegArgs(
       makeJob({ format: 'webm', targetSizeMB: 10, resolution: 'source' }),

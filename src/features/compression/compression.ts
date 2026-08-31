@@ -191,7 +191,9 @@ export function buildFFmpegArgs(
     )
   } else {
     args.push('-crf', String(values.crf))
-    if (format === 'webm') args.push('-b:v', '0')
+    // VP8 CQ treats `-b:v 0` as unset and silently caps at 256 kbps,
+    // which flattens every quality preset on 720p/1080p sources.
+    if (format === 'webm') args.push('-b:v', '8M')
   }
 
   args.push(
