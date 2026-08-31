@@ -101,6 +101,30 @@ describe('buildFFmpegArgs', () => {
     expect(buildFFmpegArgs(job, 'in.mp4', 'out.mp4')).not.toContain('-vf')
   })
 
+  it('scales portrait video by the short side so 720p is 720x1280, not 404x720', () => {
+    const portrait720 = makeJob({ resolution: '720' })
+    portrait720.metadata = { duration: 12, width: 1080, height: 1920 }
+
+    const portrait1080 = makeJob({ resolution: '1080' })
+    portrait1080.metadata = { duration: 12, width: 1080, height: 1920 }
+
+    const already720p = makeJob({ resolution: '720' })
+    already720p.metadata = { duration: 12, width: 720, height: 1280 }
+
+    expect(buildFFmpegArgs(portrait720, 'in.mp4', 'out.mp4')).toEqual(
+      expect.arrayContaining(['-vf', 'scale=720:1280']),
+    )
+    expect(buildFFmpegArgs(portrait720, 'in.mp4', 'out.mp4')).not.toContain(
+      'scale=404:720',
+    )
+    expect(buildFFmpegArgs(portrait1080, 'in.mp4', 'out.mp4')).not.toContain(
+      '-vf',
+    )
+    expect(buildFFmpegArgs(already720p, 'in.mp4', 'out.mp4')).not.toContain(
+      '-vf',
+    )
+  })
+
   it('snaps odd source dimensions so yuv420 encoders can run', () => {
     const keepSource = makeJob({ resolution: 'source' })
     keepSource.metadata = { duration: 8, width: 853, height: 480 }
