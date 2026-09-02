@@ -159,7 +159,9 @@ export function buildFFmpegArgs(
   const { format, quality, resolution, targetSizeMB } = job.settings
   const values = qualityValues[format][quality]
   const dimensions = dimensionsFor(job.metadata, resolution)
-  const args = ['-i', inputName, '-map', '0:v:0', '-map', '0:a?']
+  // Capital V skips attached pictures / cover art. Lowercase v would encode
+  // the thumbnail when it is stream 0, silently dropping the real video.
+  const args = ['-i', inputName, '-map', '0:V:0', '-map', '0:a?']
 
   if (dimensions) {
     args.push('-vf', `scale=${dimensions.width}:${dimensions.height}`)
