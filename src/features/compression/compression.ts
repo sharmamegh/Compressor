@@ -77,47 +77,100 @@ export function validateVideoFile(file: File): string | null {
   return null
 }
 
+function isUsableMetadata(metadata: VideoMetadata): boolean {
+  return (
+    Number.isFinite(metadata.duration) &&
+    metadata.duration > 0 &&
+    Number.isFinite(metadata.width) &&
+    Number.isFinite(metadata.height) &&
+    metadata.width > 0 &&
+    metadata.height > 0
+  )
+}
+
+function readVideoMetadata(video: HTMLVideoElement): VideoMetadata {
+  const duration =
+    Number.isFinite(video.duration) && video.duration > 0
+      ? video.duration
+      : video.currentTime
+  return {
+    duration,
+    width: video.videoWidth,
+    height: video.videoHeight,
+  }
+}
+
 export function getVideoMetadata(file: File): Promise<VideoMetadata> {
   return new Promise((resolve, reject) => {
     const video = document.createElement('video')
     const objectUrl = URL.createObjectURL(file)
+    let settled = false
 
     const cleanUp = () => {
+      video.onloadedmetadata = null
+      video.ontimeupdate = null
+      video.onseeked = null
+      video.onerror = null
       video.removeAttribute('src')
       video.load()
       URL.revokeObjectURL(objectUrl)
     }
 
-    const timer = window.setTimeout(() => {
+    const fail = (error: Error) => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timer)
       cleanUp()
-      reject(new Error('Reading the video took too long.'))
+      reject(error)
+    }
+
+    const succeed = (metadata: VideoMetadata) => {
+      if (!isUsableMetadata(metadata)) {
+        fail(new Error('The video metadata could not be read.'))
+        return
+      }
+      if (settled) return
+      settled = true
+      window.clearTimeout(timer)
+      cleanUp()
+      resolve(metadata)
+    }
+
+    const timer = window.setTimeout(() => {
+      fail(new Error('Reading the video took too long.'))
     }, 15_000)
 
     video.preload = 'metadata'
+    video.muted = true
+    video.playsInline = true
     video.onloadedmetadata = () => {
-      window.clearTimeout(timer)
-      const metadata = {
-        duration: video.duration,
-        width: video.videoWidth,
-        height: video.videoHeight,
-      }
-      cleanUp()
-
-      if (
-        !Number.isFinite(metadata.duration) ||
-        metadata.duration <= 0 ||
-        metadata.width <= 0 ||
-        metadata.height <= 0
-      ) {
-        reject(new Error('The video metadata could not be read.'))
+      const metadata = readVideoMetadata(video)
+      if (isUsableMetadata(metadata)) {
+        succeed(metadata)
         return
       }
-      resolve(metadata)
+      if (video.videoWidth <= 0 || video.videoHeight <= 0) {
+        fail(new Error('The video metadata could not be read.'))
+        return
+      }
+
+      // Chunked MediaRecorder / screen-recorder WebM often has no Duration
+      // element, so the browser reports Infinity until we seek past the end.
+      const recover = () => {
+        video.ontimeupdate = null
+        video.onseeked = null
+        succeed(readVideoMetadata(video))
+      }
+      video.ontimeupdate = recover
+      video.onseeked = recover
+      try {
+        video.currentTime = 1e101
+      } catch {
+        fail(new Error('The video metadata could not be read.'))
+      }
     }
     video.onerror = () => {
-      window.clearTimeout(timer)
-      cleanUp()
-      reject(new Error('This video cannot be read by your browser.'))
+      fail(new Error('This video cannot be read by your browser.'))
     }
     video.src = objectUrl
   })

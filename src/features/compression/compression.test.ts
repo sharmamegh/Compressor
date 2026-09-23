@@ -194,19 +194,45 @@ describe('formatting helpers', () => {
   })
 })
 
+function mockMetadataVideo(
+  overrides: {
+    duration?: number
+    currentTime?: number
+    videoWidth?: number
+    videoHeight?: number
+    onSeek?: (video: HTMLVideoElement) => void
+  } = {},
+): HTMLVideoElement {
+  let currentTime = overrides.currentTime ?? 0
+  const video = {
+    duration: overrides.duration ?? 42,
+    videoWidth: overrides.videoWidth ?? 1280,
+    videoHeight: overrides.videoHeight ?? 720,
+    preload: '',
+    src: '',
+    muted: false,
+    playsInline: false,
+    onloadedmetadata: null,
+    ontimeupdate: null,
+    onseeked: null,
+    onerror: null,
+    removeAttribute: vi.fn(),
+    load: vi.fn(),
+    get currentTime() {
+      return currentTime
+    },
+    set currentTime(value: number) {
+      overrides.onSeek?.(video as unknown as HTMLVideoElement)
+      if (overrides.onSeek) return
+      currentTime = value
+    },
+  }
+  return video as unknown as HTMLVideoElement
+}
+
 describe('getVideoMetadata', () => {
   it('reads valid metadata and releases the temporary URL', async () => {
-    const video = {
-      duration: 42,
-      videoWidth: 1280,
-      videoHeight: 720,
-      preload: '',
-      src: '',
-      onloadedmetadata: null,
-      onerror: null,
-      removeAttribute: vi.fn(),
-      load: vi.fn(),
-    } as unknown as HTMLVideoElement
+    const video = mockMetadataVideo()
     vi.spyOn(document, 'createElement').mockReturnValue(video)
     const revoke = vi.spyOn(URL, 'revokeObjectURL')
 
@@ -219,5 +245,51 @@ describe('getVideoMetadata', () => {
       height: 720,
     })
     expect(revoke).toHaveBeenCalled()
+  })
+
+  it('recovers duration from WebM that reports Infinity until a seek', async () => {
+    const video = mockMetadataVideo({
+      duration: Infinity,
+      onSeek(element) {
+        Object.defineProperty(element, 'duration', { value: 8.25 })
+        Object.defineProperty(element, 'currentTime', {
+          configurable: true,
+          get: () => 8.25,
+          set: () => undefined,
+        })
+        element.ontimeupdate?.(new Event('timeupdate'))
+      },
+    })
+    vi.spyOn(document, 'createElement').mockReturnValue(video)
+    const revoke = vi.spyOn(URL, 'revokeObjectURL')
+
+    const pending = getVideoMetadata(
+      makeFile('screen-recording.webm', { type: 'video/webm' }),
+    )
+    video.onloadedmetadata?.(new Event('loadedmetadata'))
+
+    await expect(pending).resolves.toEqual({
+      duration: 8.25,
+      width: 1280,
+      height: 720,
+    })
+    expect(revoke).toHaveBeenCalled()
+  })
+
+  it('rejects when a seek still cannot recover a usable duration', async () => {
+    const video = mockMetadataVideo({
+      duration: Infinity,
+      onSeek(element) {
+        element.ontimeupdate?.(new Event('timeupdate'))
+      },
+    })
+    vi.spyOn(document, 'createElement').mockReturnValue(video)
+
+    const pending = getVideoMetadata(
+      makeFile('screen-recording.webm', { type: 'video/webm' }),
+    )
+    video.onloadedmetadata?.(new Event('loadedmetadata'))
+
+    await expect(pending).rejects.toThrow(/metadata could not be read/i)
   })
 })
