@@ -116,6 +116,32 @@ describe('buildFFmpegArgs', () => {
     )
   })
 
+  it('resamples audio to 48 kHz so WebM Vorbis can encode 16 kHz and 96 kHz sources', () => {
+    const webm = buildFFmpegArgs(
+      makeJob({ format: 'webm', resolution: 'source' }),
+      'input.mp4',
+      'output.webm',
+    )
+    const mp4 = buildFFmpegArgs(makeJob(), 'input.mp4', 'output.mp4')
+
+    expect(webm.slice(webm.indexOf('-c:a'), webm.indexOf('-y'))).toEqual([
+      '-c:a',
+      'libvorbis',
+      '-b:a',
+      '112k',
+      '-ar',
+      '48000',
+    ])
+    expect(mp4.slice(mp4.indexOf('-c:a'), mp4.indexOf('-movflags'))).toEqual([
+      '-c:a',
+      'aac',
+      '-b:a',
+      '128k',
+      '-ar',
+      '48000',
+    ])
+  })
+
   it('uses VP8 and Vorbis for WebM so ffmpeg.wasm 0.12 does not crash the tab', () => {
     const args = buildFFmpegArgs(
       makeJob({ format: 'webm', resolution: 'source' }),
