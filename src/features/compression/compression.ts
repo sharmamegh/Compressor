@@ -201,6 +201,11 @@ export function buildFFmpegArgs(
     format === 'mp4' ? 'aac' : 'libvorbis',
     '-b:a',
     `${values.audioKbps}k`,
+    // libvorbis rejects 8/16/22.05/24/88.2/96 kHz (and similar) when given
+    // `-b:a`, so WebM encodes of those sources fail with an empty output.
+    // 48 kHz is valid for Vorbis and AAC and is what browsers can play.
+    '-ar',
+    '48000',
   )
   if (format === 'mp4') args.push('-movflags', '+faststart')
   args.push('-y', outputName)
