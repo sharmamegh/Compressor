@@ -202,6 +202,11 @@ export function buildFFmpegArgs(
     '-b:a',
     `${values.audioKbps}k`,
   )
+  if (format === 'webm') {
+    // libvorbis ABR rejects 4.0/5.0/6.1/7.1 (and similar) layouts, so WebM
+    // encodes of game captures and other surround sources write no output.
+    args.push('-ac', '2')
+  }
   if (format === 'mp4') args.push('-movflags', '+faststart')
   args.push('-y', outputName)
   return args

@@ -116,6 +116,25 @@ describe('buildFFmpegArgs', () => {
     )
   })
 
+  it('downmixes WebM audio to stereo so libvorbis can encode 7.1 sources', () => {
+    const webm = buildFFmpegArgs(
+      makeJob({ format: 'webm', resolution: 'source' }),
+      'input.mp4',
+      'output.webm',
+    )
+    const mp4 = buildFFmpegArgs(makeJob(), 'input.mp4', 'output.mp4')
+
+    expect(webm.slice(webm.indexOf('-c:a'), webm.indexOf('-y'))).toEqual([
+      '-c:a',
+      'libvorbis',
+      '-b:a',
+      '112k',
+      '-ac',
+      '2',
+    ])
+    expect(mp4).not.toEqual(expect.arrayContaining(['-ac', '2']))
+  })
+
   it('uses VP8 and Vorbis for WebM so ffmpeg.wasm 0.12 does not crash the tab', () => {
     const args = buildFFmpegArgs(
       makeJob({ format: 'webm', resolution: 'source' }),
